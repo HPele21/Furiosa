@@ -1,9 +1,9 @@
 #include <DRV8833.h>
-DRV8833 motor(4,27, 13,14); // motor b e a VESPA pinout
+extern DRV8833 motor; // motor b e a VESPA pinout
 
 
-#define l_sen 35 // sensor esquerdo S4 VESPA pinout
-#define r_sen 36 // sensor direito S3
+#define l_sen 33 // sensor esquerdo S4 VESPA pinout
+#define r_sen 32 // sensor direito S3
 
 // ESTADOS DO AUTONOMO //
 enum states_auto {
@@ -144,7 +144,7 @@ void furi_pat() {
     break;
 
     case atc:
-    motor.move(1023, 1023);
+    motor.move(-1023, -1023);
     break;
 
     case l_atc:

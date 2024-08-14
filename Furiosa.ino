@@ -1,7 +1,7 @@
 //========================================
 // CONTROLE DOS ESTADOS
 //========================================
-#define btn_pin 35 // VESPA botao pinout
+#define btn_pin 35 // VESPA botao geral pinout
 
 enum {
   mod_stp, // modo parado
@@ -20,43 +20,163 @@ int mod_op = mod_stp; // modo de operaçao
 //========================================
 #include <esp_now.h>
 #include <WiFi.h>
+#include "DRV8833.h"
+DRV8833 motor (4,27, 13,14);
 
+#define AM1 4
+#define AM2 27
+#define BM1 13
+#define BM2 14
+
+//Servo esc; 
+int val;
+
+int XRSTK = 0;
+int YRSTK = 0;
+int XLSTK = 0;
+int YLSTK = 0;
+int POT = 0;
+int SW = 0;
+
+int motorSpeed;
+int motorRotation;
+
+int leftMotorValue;
+int rightMotorValue;
+
+const int PWM_freq = 5000;
+const int PWM_resolution = 10;
+const int MAX_DUTY_CYCLE = (int)(pow(2, PWM_resolution) - 1);
+
+bool isConnected = false;
 esp_now_peer_info_t peerInfo;
-
 uint8_t broadcastAddress[] = {0x48, 0x31, 0xb7, 0x3e, 0x64, 0xa0};
+typedef struct pacote {
+    int code;
+    int len;
+    int ID;
+    int ch[20];
+} pacote;
+pacote pack_rx;
 
-typedef struct struct_message {
-  //int code;
-  //int len;
-  //int ID;
-  int ch[20];
-  int x_axis;
-  int y_axis;
-} strucut_message;
+void OnDataReceived(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
+  if (data_len == sizeof(pacote)) {
+    memcpy(&pack_rx, data, sizeof(pacote));
+    Serial.print("Received Data: ID = ");
+    Serial.print(pack_rx.ID);
+    Serial.print(", Channels: ");
+    for (int i = 0; i < pack_rx.len; i++) {
+      Serial.print(" ");
+      Serial.print(pack_rx.ch[i]);
+    }
+    Serial.println();
 
-struct_message myData;
-
-void OnDataRecv(const uint8_t* mac_addr, const uint8_t* data, int len) {
-  if(mod_op != mod_rc) return;
-
-  memcpy(&myData, data, sizeof(myData));
-
-  //int channel_sum = myData.ch[0] + myData[1];
-
-  int vy = map(myData.ch[0], 1000, 2000, 1023, -1023);
-  int vx = map(myData.ch[1], 1000, 2000, -1023, 1023);
-
-  int speedright = constrain(vx + vy, -1023,1023);
-  int speedleft = constrain(vx - vy, -1023, 1023);
-
-  //motor.move(speedright, speedleft);
+    isConnected = true;
+  } else {
+    Serial.println("Received data with incorrect size");
+  }
 }
+
+void convert() {
+  XRSTK = map(pack_rx.ch[0], 1000, 2000, 1024, -1024);
+  YRSTK = map(pack_rx.ch[1], 1000, 2000, -1024, 1024);
+  XLSTK = map(pack_rx.ch[2], 1000, 2000, -1024, 1024);
+  YLSTK = map(pack_rx.ch[3], 1000, 2000, -1024, 1024);
+  POT   = map(pack_rx.ch[4], 1000, 2000, 0, 180);
+  SW    = map(pack_rx.ch[5], 1000, 2000, 0, 1);
+}
+
+void rcsetup() {
+  Serial.begin(115200);
+  Serial.println("Ready.");
+
+  //esc.attach(D7);
+
+  pinMode(AM1, OUTPUT);
+  pinMode(BM1, OUTPUT);
+  pinMode(AM2, OUTPUT);
+  pinMode(BM2, OUTPUT);
+
+  ledcSetup(0, PWM_freq, PWM_resolution);
+  ledcSetup(1, PWM_freq, PWM_resolution);
+  ledcSetup(2, PWM_freq, PWM_resolution);
+  ledcSetup(3, PWM_freq, PWM_resolution);
+  ledcAttachPin(AM1, 0);
+  ledcAttachPin(BM1, 1);
+  ledcAttachPin(AM2, 2);
+  ledcAttachPin(BM2, 3);
+
+    // Init ESP-NOW
+  WiFi.mode(WIFI_STA);
+
+  if (esp_now_init() != ESP_OK) {
+      Serial.println("Error initializing ESP-NOW");
+      return;
+  }
+
+  // Register peer
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+      Serial.println("Failed to add peer");
+      return;
+  }
+  // Register callback for received data
+  esp_now_register_recv_cb(OnDataReceived);
+}
+
+void rcloop() {
+  if (isConnected) {
+    //esc.write(POT);
+
+    convert();
+    motorSpeed = XRSTK;
+    motorRotation = YRSTK;
+
+    leftMotorValue = motorSpeed + motorRotation;
+    rightMotorValue = motorSpeed - motorRotation;
+
+    leftMotorValue = constrain(leftMotorValue, -MAX_DUTY_CYCLE, MAX_DUTY_CYCLE);
+    rightMotorValue = constrain(rightMotorValue, -MAX_DUTY_CYCLE, MAX_DUTY_CYCLE);
+
+    if (leftMotorValue >= 0) {
+      ledcWrite(0, leftMotorValue);
+      ledcWrite(1, 0);
+    } 
+    else if (leftMotorValue < 0){
+      ledcWrite(0, 0);
+      ledcWrite(1, -leftMotorValue);
+    }
+    else {
+      ledcWrite(0, MAX_DUTY_CYCLE);
+      ledcWrite(1, MAX_DUTY_CYCLE);
+    }
+
+    if (rightMotorValue >= 0) {
+      ledcWrite(2, rightMotorValue);
+      ledcWrite(3, 0);
+    } else if (rightMotorValue < 0) {
+      ledcWrite(2, 0);
+      ledcWrite(3, -rightMotorValue);
+    } else {
+      ledcWrite(2, MAX_DUTY_CYCLE);
+      ledcWrite(3, MAX_DUTY_CYCLE);
+    }
+  }
+  delay(50);
+}
+
 
 //========================================
 // AUTO
 //========================================
 #include "Auto.h"
 
+// MAC Address: B8:D6:1A:74:E5:98 // VESPA
+//  // PS4
+
+#include <IRremote.hpp>
 #include <SumoIR.h>
 SumoIR IR;
 
@@ -85,8 +205,14 @@ void setup() {
   Serial.begin(115200); // iniciando o serial
 
 
+  pinMode(btn_pin, INPUT);
+  pinMode(l_sen, INPUT);
+  pinMode(r_sen, INPUT);
+
+
   // PIXEL //
   px_begin();
+  px_fill(100, 0, 0);
 
 
   // ESPNOW //
@@ -110,11 +236,11 @@ void setup() {
   }
 
   // CALLBACK ESPNOW //
-  esp_now_register_recv_cb(OnDataRecv);
+  esp_now_register_recv_cb(OnDataReceived);
 
 
   // RECEPTOR INFRAVERMELHO 
-  IR.begin(35); // S2 VESPA pinout
+  IR.begin(25); // S2 VESPA pinout
 
 
   // MOTOR //
@@ -163,12 +289,15 @@ void loop() {
     }else if(received == "japan") {
       strategy = "japan";
       SerialBT.println("Strategy set to japan");
-    }else if(received == "greatwallofchina") {
+    }else if(received == "china") {
       strategy = "greatwallofchina";
       SerialBT.println("Strategy set to gwc");
     }else if(received == "ghoul") {
        strategy = "ghoul";
       SerialBT.println("Strategy set to ghoul");
+    }else if(received == "pat") {
+       strategy = "pat";
+      SerialBT.println("Strategy set to pat");
     }else {
       SerialBT.println("Unknown strategy");
     }
@@ -202,6 +331,9 @@ void loop() {
 
 
       }else if(IR.on()) {
+        
+        px_fill(0, 0, 0);
+        furi_pat();
 
         if(strategy == "madmax") {
           furi_madmax();
@@ -222,7 +354,7 @@ void loop() {
 
       }else if(IR.stop()){
         motor.stop();
-        //rainbow(10);
+        rainbow(10);
 
       }else {
         motor.stop();

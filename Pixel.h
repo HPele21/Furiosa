@@ -21,7 +21,7 @@ void px_fill(uint8_t r, uint8_t g, uint8_t b) {
 }
 
 
-/*void rainbow(int wait) {
+void rainbow(int wait) {
   // Hue of first pixel runs 5 complete loops through the color wheel.
   // Color wheel has a range of 65536 but it's OK if we roll over, so
   // just count from 0 to 5*65536. Adding 256 to firstPixelHue each time
@@ -38,4 +38,4 @@ void px_fill(uint8_t r, uint8_t g, uint8_t b) {
     pixels.show(); // Update strip with new contents
     delay(wait);  // Pause for a moment
   }
-}*/
+}
