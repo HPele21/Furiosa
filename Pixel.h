@@ -20,6 +20,14 @@ void px_fill(uint8_t r, uint8_t g, uint8_t b) {
     pixels.show();
 }
 
+void px_strategy() {
+
+  for(int i = 0; i < nmb_px; i++) { // Começa a contar do número 4
+    pixels.setPixelColor(i, pixels.Color(128, 0, 128)); // Roxo
+  }
+
+  pixels.show(); // Atualiza os LEDs
+}
 
 void rainbow(int wait) {
   // Hue of first pixel runs 5 complete loops through the color wheel.

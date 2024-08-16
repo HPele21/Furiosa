@@ -1,3 +1,9 @@
+// MAC Address: B8:D6:1A:74:E5:98 // VESPA
+// 98:83:89:fe:72:2a // PS4
+
+//#include "RCDualShock.h"
+//#include <PS4Controller.h>
+
 //========================================
 // CONTROLE DOS ESTADOS
 //========================================
@@ -62,14 +68,14 @@ pacote pack_rx;
 void OnDataReceived(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   if (data_len == sizeof(pacote)) {
     memcpy(&pack_rx, data, sizeof(pacote));
-    Serial.print("Received Data: ID = ");
-    Serial.print(pack_rx.ID);
-    Serial.print(", Channels: ");
+    //Serial.print("Received Data: ID = ");
+    //Serial.print(pack_rx.ID);
+    //Serial.print(", Channels: ");
     for (int i = 0; i < pack_rx.len; i++) {
-      Serial.print(" ");
-      Serial.print(pack_rx.ch[i]);
+      //Serial.print(" ");
+      //Serial.print(pack_rx.ch[i]);
     }
-    Serial.println();
+    //Serial.println();
 
     isConnected = true;
   } else {
@@ -173,12 +179,10 @@ void rcloop() {
 //========================================
 #include "Auto.h"
 
-// MAC Address: B8:D6:1A:74:E5:98 // VESPA
-//  // PS4
-
 #include <IRremote.hpp>
 #include <SumoIR.h>
 SumoIR IR;
+int strategy = 0;
 
 //========================================
 // PIXEL
@@ -189,7 +193,7 @@ SumoIR IR;
 //========================================
 // BLUETOOTH
 //========================================
-#include <BluetoothSerial.h>
+/*#include <BluetoothSerial.h>
 
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
 #error Bluetooth is not enabled! Please run `make menuconfig'to and enable it
@@ -197,12 +201,14 @@ SumoIR IR;
 
 BluetoothSerial SerialBT; // variavel para guardar valores do tipo BluetoothSerial
 
-String strategy = "default"; // valor recebido do dispositivo conectado ao bluetooth
+String strategy = "default"; // valor recebido do dispositivo conectado ao bluetooth*/
 
 
 void setup() {
 
   Serial.begin(115200); // iniciando o serial
+
+  //PS4.begin("98:83:89:fe:72:2a");
 
 
   pinMode(btn_pin, INPUT);
@@ -249,7 +255,7 @@ void setup() {
 
 
   // BLUETOOTH //
-  SerialBT.begin("FuriosaMini"); // nome do bluetooth
+  //SerialBT.begin("FuriosaMini"); // nome do bluetooth
 }
 
 void loop() {
@@ -279,7 +285,7 @@ void loop() {
   }
 
 
-  if(SerialBT.available()) {
+  /*if(SerialBT.available()) {
     String received = SerialBT.readStringUntil('\n');
     received.trim();
 
@@ -301,7 +307,7 @@ void loop() {
     }else {
       SerialBT.println("Unknown strategy");
     }
-  }
+  }*/
 
 
   switch(mod_op) {
@@ -314,28 +320,62 @@ void loop() {
       // atualizaçao do estado // 
       IR.update();
 
+      if(IR.available()){
+        int cmd = IR.read();
+        if( cmd >= 4 && cmd <= 9 ){ // faixa de valores validos ( lembrando que 1, 2 e 3 são eservados pra start, stop e prepare)
+          strategy = cmd;
+        }
+      }
       // robo preparado //
-      if(IR.prepare()) {
+      if (IR.prepare()) {
 
-        if(IR.available() && IR.read() == 1) {
+        if (IR.available()) {
           px_fill(0, 100, 0);
           delay(80);
           px_fill(0, 0, 0);
           delay(80);
         }
-
-
       // chamada pro robo começar //
-      }else if(IR.start()) {
+      } else if (IR.start()) {
         //
-
-
-      }else if(IR.on()) {
+      } else if (IR.on()) {
         
         px_fill(0, 0, 0);
-        furi_pat();
 
-        if(strategy == "madmax") {
+        //furi_japan();
+
+        switch(strategy) {
+
+          Serial.println("running strategy" + String(strategy));
+          
+          case 4:
+          furi_pat();
+          break;
+
+          case 5:
+          furi_japan();
+          break;
+
+          case 6:
+          furi_ghoul();
+          break;
+
+          case 7:
+          furi_greatwallofchina();
+          break;
+
+          case 8:
+          furi_madmax();
+          break;
+
+          case 9:
+          break;
+
+        }
+
+        //furi_japan();
+
+        /*if(strategy == "madmax") {
           furi_madmax();
 
         }else if(strategy == "japan") {
@@ -349,25 +389,24 @@ void loop() {
 
         }else {
           furi_pat();
-        }
+        }*/
 
 
-      }else if(IR.stop()){
+      } else if(IR.stop()){
         motor.stop();
         rainbow(10);
 
-      }else {
+      } else {
         motor.stop();
       }
     }
     break;
 
-
     case mod_rc:
     break;
 
-
     case mod_ps4:
+    //DualShock();
     break;
   } // fecha switch
 } // fecha loop
