@@ -1,8 +1,8 @@
 // MAC Address: B8:D6:1A:74:E5:98 // VESPA
 // 98:83:89:fe:72:2a // PS4
 
-//#include "RCDualShock.h"
-//#include <PS4Controller.h>
+#include "RC_PS4.h"
+#include <PS4Controller.h>
 
 //========================================
 // CONTROLE DOS ESTADOS
@@ -22,11 +22,12 @@ int mod_op = mod_stp; // modo de operaçao
 
 
 //========================================
-// ESPNOW
+// ESPNOW + RC
 //========================================
 #include <esp_now.h>
 #include <WiFi.h>
 #include "DRV8833.h"
+
 DRV8833 motor (4,27, 13,14);
 
 #define AM1 4
@@ -92,87 +93,6 @@ void convert() {
   SW    = map(pack_rx.ch[5], 1000, 2000, 0, 1);
 }
 
-void rcsetup() {
-  Serial.begin(115200);
-  Serial.println("Ready.");
-
-  //esc.attach(D7);
-
-  pinMode(AM1, OUTPUT);
-  pinMode(BM1, OUTPUT);
-  pinMode(AM2, OUTPUT);
-  pinMode(BM2, OUTPUT);
-
-  ledcSetup(0, PWM_freq, PWM_resolution);
-  ledcSetup(1, PWM_freq, PWM_resolution);
-  ledcSetup(2, PWM_freq, PWM_resolution);
-  ledcSetup(3, PWM_freq, PWM_resolution);
-  ledcAttachPin(AM1, 0);
-  ledcAttachPin(BM1, 1);
-  ledcAttachPin(AM2, 2);
-  ledcAttachPin(BM2, 3);
-
-    // Init ESP-NOW
-  WiFi.mode(WIFI_STA);
-
-  if (esp_now_init() != ESP_OK) {
-      Serial.println("Error initializing ESP-NOW");
-      return;
-  }
-
-  // Register peer
-  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
-  peerInfo.channel = 0;
-  peerInfo.encrypt = false;
-  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
-      Serial.println("Failed to add peer");
-      return;
-  }
-  // Register callback for received data
-  esp_now_register_recv_cb(OnDataReceived);
-}
-
-void rcloop() {
-  if (isConnected) {
-    //esc.write(POT);
-
-    convert();
-    motorSpeed = XRSTK;
-    motorRotation = YRSTK;
-
-    leftMotorValue = motorSpeed + motorRotation;
-    rightMotorValue = motorSpeed - motorRotation;
-
-    leftMotorValue = constrain(leftMotorValue, -MAX_DUTY_CYCLE, MAX_DUTY_CYCLE);
-    rightMotorValue = constrain(rightMotorValue, -MAX_DUTY_CYCLE, MAX_DUTY_CYCLE);
-
-    if (leftMotorValue >= 0) {
-      ledcWrite(0, leftMotorValue);
-      ledcWrite(1, 0);
-    } 
-    else if (leftMotorValue < 0){
-      ledcWrite(0, 0);
-      ledcWrite(1, -leftMotorValue);
-    }
-    else {
-      ledcWrite(0, MAX_DUTY_CYCLE);
-      ledcWrite(1, MAX_DUTY_CYCLE);
-    }
-
-    if (rightMotorValue >= 0) {
-      ledcWrite(2, rightMotorValue);
-      ledcWrite(3, 0);
-    } else if (rightMotorValue < 0) {
-      ledcWrite(2, 0);
-      ledcWrite(3, -rightMotorValue);
-    } else {
-      ledcWrite(2, MAX_DUTY_CYCLE);
-      ledcWrite(3, MAX_DUTY_CYCLE);
-    }
-  }
-  delay(50);
-}
-
 
 //========================================
 // AUTO
@@ -183,6 +103,7 @@ void rcloop() {
 #include <SumoIR.h>
 SumoIR IR;
 int strategy = 0;
+
 
 //========================================
 // PIXEL
@@ -208,12 +129,25 @@ void setup() {
 
   Serial.begin(115200); // iniciando o serial
 
-  //PS4.begin("98:83:89:fe:72:2a");
+  PS4.begin("98:83:89:fe:72:2a");
 
 
   pinMode(btn_pin, INPUT);
   pinMode(l_sen, INPUT);
   pinMode(r_sen, INPUT);
+  pinMode(AM1, OUTPUT);
+  pinMode(BM1, OUTPUT);
+  pinMode(AM2, OUTPUT);
+  pinMode(BM2, OUTPUT);
+
+  ledcSetup(0, PWM_freq, PWM_resolution);
+  ledcSetup(1, PWM_freq, PWM_resolution);
+  ledcSetup(2, PWM_freq, PWM_resolution);
+  ledcSetup(3, PWM_freq, PWM_resolution);
+  ledcAttachPin(AM1, 0);
+  ledcAttachPin(BM1, 1);
+  ledcAttachPin(AM2, 2);
+  ledcAttachPin(BM2, 3);
 
 
   // PIXEL //
@@ -402,11 +336,50 @@ void loop() {
     }
     break;
 
-    case mod_rc:
+    case mod_rc: {
+    if (isConnected) {
+    //esc.write(POT);
+
+    convert();
+    motorSpeed = XRSTK;
+    motorRotation = YRSTK;
+
+    leftMotorValue = motorSpeed + motorRotation;
+    rightMotorValue = motorSpeed - motorRotation;
+
+    leftMotorValue = constrain(leftMotorValue, -MAX_DUTY_CYCLE, MAX_DUTY_CYCLE);
+    rightMotorValue = constrain(rightMotorValue, -MAX_DUTY_CYCLE, MAX_DUTY_CYCLE);
+
+    if (leftMotorValue >= 0) {
+      ledcWrite(0, leftMotorValue);
+      ledcWrite(1, 0);
+    } 
+    else if (leftMotorValue < 0){
+      ledcWrite(0, 0);
+      ledcWrite(1, -leftMotorValue);
+    }
+    else {
+      ledcWrite(0, MAX_DUTY_CYCLE);
+      ledcWrite(1, MAX_DUTY_CYCLE);
+    }
+
+    if (rightMotorValue >= 0) {
+      ledcWrite(2, rightMotorValue);
+      ledcWrite(3, 0);
+    } else if (rightMotorValue < 0) {
+      ledcWrite(2, 0);
+      ledcWrite(3, -rightMotorValue);
+    } else {
+      ledcWrite(2, MAX_DUTY_CYCLE);
+      ledcWrite(3, MAX_DUTY_CYCLE);
+    }
+  }
+  delay(50);
+}
     break;
 
     case mod_ps4:
-    //DualShock();
+    rc_ps4();
     break;
   } // fecha switch
 } // fecha loop

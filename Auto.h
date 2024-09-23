@@ -110,29 +110,29 @@ void furi_japan() {
   switch(state_at){
 
     case start:
-    motor.move(-600, 600);
+    motor.move(-700, 700);
       delay(600);
 
-      motor.move(600, 600);
-      delay(900);
+      motor.move(700, 700);
+      delay(600);
 
-      motor.move(600, -600);
-      delay(900);
+      motor.move(700, -700);
+      delay(600);
 
-      motor.move(600, 600);
-      delay(900);
+      motor.move(700, 700);
+      delay(600);
 
-      motor.move(600, -600);
-      delay(900);
+      motor.move(700, -700);
+      delay(600);
 
-      motor.move(600, 600);
-      delay(900);
+      motor.move(700, 700);
+      delay(600);
 
-      motor.move(600, 600);
-      delay(900);
+      motor.move(700, 700);
+      delay(600);
 
-      motor.move(-600, 600);
-      delay(900);
+      motor.move(-700, 700);
+      delay(600);
     break;
 
     case search:
@@ -274,10 +274,12 @@ void furi_ghoul(){
     switch(state_at){
 
       case start:
+     motor.move(700, 700);
+      delay(30);
       break;
       
       case search:
-      motor.move(200, 200);
+      
       break;
 
       case atc:

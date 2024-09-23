@@ -1,3 +1,6 @@
+#ifndef Pixel_h
+#define Pixel_h
+
 #include <Adafruit_NeoPixel.h>
 
 #define pin_led 26 // VESPA S1 pinout
@@ -47,3 +50,5 @@ void rainbow(int wait) {
     delay(wait);  // Pause for a moment
   }
 }
+
+#endif
